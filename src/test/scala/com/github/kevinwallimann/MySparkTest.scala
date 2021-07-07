@@ -1,15 +1,18 @@
 package com.github.kevinwallimann
 
 import io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient
+import org.apache.spark.SparkException
+import org.apache.spark.sql.avro.IncompatibleSchemaException
 import org.apache.spark.sql.avro.SchemaConverters.toAvroType
 import org.apache.spark.sql.catalyst.encoders.RowEncoder
 import org.apache.spark.sql.execution.streaming.MemoryStream
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.streaming.Trigger
+import org.apache.spark.sql.streaming.{StreamingQueryException, Trigger}
 import org.apache.spark.sql.types.{IntegerType, LongType, StructType}
 import org.apache.spark.sql.{Row, SparkSession}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers.{a, convertToAnyShouldWrapper, the}
 import za.co.absa.abris.avro.read.confluent.SchemaManagerFactory
 import za.co.absa.abris.avro.registry.{AbrisMockSchemaRegistryClient, SchemaSubject}
 import za.co.absa.abris.config.AbrisConfig
@@ -26,8 +29,17 @@ class MySparkTest extends AnyFlatSpec with SparkTestBase with BeforeAndAfter {
     SchemaManagerFactory.addSRClientInstance(schemaRegistryConfig, mockSchemaRegistryClient)
   }
 
-
   it should "fail due to a nullability mismatch at runtime" in {
+    val exception = the [StreamingQueryException] thrownBy executeTest(nullSafe = false)
+    exception.getCause shouldBe a [SparkException]
+    exception.getCause.getCause shouldBe a [IncompatibleSchemaException]
+  }
+
+  it should "succeed when using a eqNullSafe" in {
+    executeTest(nullSafe = true)
+  }
+
+  private def executeTest(nullSafe: Boolean) = {
     val spark = SparkSession.builder().getOrCreate()
 
     val schemaCatalyst = new StructType()
@@ -39,9 +51,12 @@ class MySparkTest extends AnyFlatSpec with SparkTestBase with BeforeAndAfter {
     val input = new MemoryStream[Row](1, spark.sqlContext)(RowEncoder(schemaCatalyst))
     input.addData(rows)
 
-    val df = input.toDF()
-      .filter(col("value1") === lit(42)) // test fails with ===
-//      .filter(col("value1") eqNullSafe lit(42)) // test succeeds with eqNullSafe
+    val inputDf = input.toDF()
+    val df = if(nullSafe) {
+      inputDf.filter(col("value1") eqNullSafe lit(42))
+    } else {
+      inputDf.filter(col("value1") === lit(42)) // causes IncompatibleSchemaException later on
+    }
     df.printSchema
 
     val allColumns = struct(df.columns.map(c => df(c)): _*)
@@ -66,4 +81,5 @@ class MySparkTest extends AnyFlatSpec with SparkTestBase with BeforeAndAfter {
       .start()
     query.awaitTermination()
   }
+
 }

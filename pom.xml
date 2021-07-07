@@ -133,7 +133,7 @@
                 <artifactId>scalatest-maven-plugin</artifactId>
                 <version>${scalatest.maven.version}</version>
                 <configuration>
-                    <reportsDirectory>/Users/abkw142/Projects/spark-archetype/target/surefire-reports</reportsDirectory>
+                    <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
                     <junitxml>.</junitxml>
                     <filereports>TestSuite.txt</filereports>
                 </configuration>
