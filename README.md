@@ -15,3 +15,5 @@ Therefore, an innocent looking `===` fails the query in this [example](https://g
 ```
 because `===` extends the `NullIntolerant` trait and makes `value1` non-nullable after optimization. To retain the nullability, the `eqNullSafe` operator can be used.
 
+
+Note that this particular problem does not occur anymore in Spark 3.0, thanks to https://issues.apache.org/jira/browse/SPARK-27838)
