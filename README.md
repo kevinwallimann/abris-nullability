@@ -7,7 +7,7 @@ can still show `nullable=true`, even if the column will later be non-nullable.
 This is problematic for [ABRiS](https://github.com/AbsaOSS/ABRiS) because it relies on the [AvroSerializer](https://github.com/apache/spark/blob/branch-2.4/external/avro/src/main/scala/org/apache/spark/sql/avro/AvroSerializer.scala)
 which relies on the nullability information, which is lazily evaluated, i.e. after query optimization.
 
-Therefore, an innocent looking `===` can fail the query:
+Therefore, an innocent looking `===` fails the query in this [example](https://github.com/kevinwallimann/abris-nullability/blob/main/src/test/scala/com/github/kevinwallimann/MySparkTest.scala#L43):
 
 ```
     val df = input.toDF()
